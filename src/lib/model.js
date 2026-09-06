@@ -14,6 +14,12 @@ export const DIMENSION_LIMITS = Object.freeze({
 
 export const DIMENSION_NAMES = Object.keys(DEFAULT_DIMENSIONS);
 
+export const CORNER_DETAILS = Object.freeze({
+  depth: 14,
+  width: 6.8,
+  outerOffset: 5.5
+});
+
 export function validateDimensions(candidate) {
   const errors = [];
   const invalid = new Set();
@@ -74,6 +80,7 @@ export function syncDimensionsToUrl(candidate) {
 
 export function planPaths(candidate) {
   const scale = Math.min(90 / candidate.lateral, 51 / candidate.retorno);
+  const detailScale = Math.min(1.65, Math.max(0.72, candidate.raio / DEFAULT_DIMENSIONS.raio));
   const startX = 10;
   const startY = 18;
   const radius = candidate.raio * scale;
@@ -82,9 +89,22 @@ export function planPaths(candidate) {
   const curveEndY = startY + radius;
   const endY = startY + candidate.retorno * scale;
 
+  const cornerWidth = CORNER_DETAILS.width * detailScale * scale;
+  const cornerDepth = CORNER_DETAILS.depth * detailScale * scale;
+  const cornerY = startY - CORNER_DETAILS.outerOffset * detailScale * scale;
+  const corners = [
+    { name: 'C', x: startX - cornerWidth / 2, y: cornerY },
+    { name: 'B', x: lineEnd - cornerWidth / 2, y: cornerY }
+  ].map((corner) => ({
+    ...corner,
+    width: cornerWidth,
+    height: cornerDepth
+  }));
+
   return {
     model: `M${startX} ${startY} H${lineEnd} A${radius} ${radius} 0 0 1 ${endX} ${curveEndY} V${endY}`,
-    sofa: `M${startX + 7} ${startY + 14} H${Math.max(startX + 12, lineEnd - 7)} Q${endX - 13} ${startY + 14} ${endX - 13} ${curveEndY + 12} V${Math.max(curveEndY + 13, endY - 7)}`
+    sofa: `M${startX + 7} ${startY + 14} H${Math.max(startX + 12, lineEnd - 7)} Q${endX - 13} ${startY + 14} ${endX - 13} ${curveEndY + 12} V${Math.max(curveEndY + 13, endY - 7)}`,
+    corners
   };
 }
 

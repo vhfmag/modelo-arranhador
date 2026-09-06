@@ -1,5 +1,5 @@
 import 'aframe';
-import { DEFAULT_DIMENSIONS } from '../model.js';
+import { CORNER_DETAILS, DEFAULT_DIMENSIONS } from '../model.js';
 
 const { AFRAME } = window;
 const { THREE } = AFRAME;
@@ -454,19 +454,24 @@ function registerCurvedScratcher() {
 
       const postBottom = scaledY(0.168, height);
       const postTop = scaledY(0.785, height);
-      for (const [frame, name] of [
-        [frames[0], 'montante-traseiro'],
-        [frames.at(-1), 'montante-frontal']
+      const cornerDepth = (CORNER_DETAILS.depth / 100) * detailScale;
+      const cornerWidth = (CORNER_DETAILS.width / 100) * detailScale;
+      const cornerOuterFace = (CORNER_DETAILS.outerOffset / 100) * detailScale;
+      const cornerCenterZ = cornerOuterFace - cornerDepth / 2;
+      const lateral = dimensions.lateral / 100;
+      const radius = dimensions.raio / 100;
+      for (const [x, name] of [
+        [-lateral / 2, 'montante-quina-c'],
+        [lateral / 2 - radius, 'montante-quina-b']
       ]) {
         const geometry = new THREE.BoxGeometry(
-          0.068 * detailScale,
+          cornerWidth,
           postTop - postBottom,
-          0.07 * detailScale
+          cornerDepth
         );
         const mesh = new THREE.Mesh(geometry, woodMaterial);
         mesh.name = name;
-        mesh.position.set(frame.point.x, (postBottom + postTop) / 2, frame.point.y);
-        mesh.rotation.y = -Math.atan2(frame.tangent.y, frame.tangent.x);
+        mesh.position.set(x, (postBottom + postTop) / 2, cornerCenterZ);
         mesh.castShadow = mesh.receiveShadow = true;
         group.add(mesh);
       }
