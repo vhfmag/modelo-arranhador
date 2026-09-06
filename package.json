@@ -1,0 +1,21 @@
+{
+  "name": "modelo-arranhador",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --threshold warning",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "aframe": "^1.8.0",
+    "svelte": "^5.57.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "svelte-check": "^4.7.6",
+    "vite": "^8.2.2"
+  }
+}
