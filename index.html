@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arranhador envolvente — estudo 3D</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path fill='%2377492e' d='M4 8h17a7 7 0 0 1 7 7v13h-5V16a3 3 0 0 0-3-3H4z'/></svg>">
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #24211d;
+      --muted: #776e63;
+      --paper: rgba(250, 248, 242, .92);
+      --wood: #77492e;
+      --line: rgba(62, 46, 32, .14);
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: #d9d1c5;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a-scene { position: fixed; inset: 0; touch-action: none; }
+    .card {
+      position: fixed;
+      z-index: 5;
+      top: 22px;
+      left: 22px;
+      width: min(355px, calc(100vw - 44px));
+      max-height: calc(100dvh - 44px);
+      padding: 20px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid rgba(255,255,255,.76);
+      border-radius: 16px;
+      background: var(--paper);
+      box-shadow: 0 18px 60px rgba(58, 43, 29, .14);
+      backdrop-filter: blur(18px);
+      transition: width .24s ease, padding .24s ease, border-radius .24s ease;
+      scrollbar-width: thin;
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .card-title { min-width: 0; }
+    .panel-toggle {
+      display: grid;
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      min-height: 36px;
+      padding: 0;
+      place-items: center;
+      border-color: rgba(119,73,46,.22);
+      background: rgba(255,255,255,.72);
+    }
+    .panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      transition: transform .24s ease;
+    }
+    .card.collapsed {
+      width: min(292px, calc(100vw - 44px));
+      padding: 13px 14px;
+      overflow: hidden;
+      border-radius: 14px;
+    }
+    .card.collapsed .panel-toggle svg { transform: rotate(180deg); }
+    .card.collapsed .copy,
+    .card.collapsed .spec,
+    .card.collapsed .validation,
+    .card.collapsed .controls,
+    .card.collapsed .legend { display: none; }
+    .card.collapsed .eyebrow { margin-bottom: 4px; }
+    .card.collapsed h1 {
+      overflow: hidden;
+      font-size: 21px;
+      line-height: 1.05;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--wood);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      max-width: 280px;
+      font: 500 31px/.98 Georgia, "Times New Roman", serif;
+      letter-spacing: -.025em;
+    }
+    .copy {
+      margin: 11px 0 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.48;
+    }
+    .spec {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 12px;
+      margin: 0 0 14px;
+      padding: 12px 0;
+      border-block: 1px solid var(--line);
+    }
+    .plan {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 82px;
+      border-radius: 10px;
+      background: rgba(114, 86, 61, .055);
+    }
+    .plan svg { width: 106px; height: 72px; overflow: visible; }
+    .measure-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .measure {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 7px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.46);
+    }
+    .measure label {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .measure input {
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      color: var(--ink);
+      background: transparent;
+      font: 750 14px/1.15 inherit;
+      appearance: textfield;
+    }
+    .measure input::-webkit-inner-spin-button { opacity: .4; }
+    .measure:focus-within { border-color: rgba(119,73,46,.58); background: #fff; }
+    .measure.invalid { border-color: #a64638; background: rgba(166,70,56,.06); }
+    .unit { color: var(--muted); font-size: 9px; }
+    .validation {
+      min-height: 14px;
+      margin: -6px 0 8px;
+      color: #a64638;
+      font-size: 9px;
+      line-height: 1.3;
+    }
+    .controls { display: flex; flex-wrap: wrap; gap: 6px; }
+    button {
+      appearance: none;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      background: rgba(255,255,255,.64);
+      font: 700 10px/1 inherit;
+      cursor: pointer;
+      transition: transform .18s, color .18s, background .18s, border-color .18s;
+    }
+    button:hover { transform: translateY(-1px); border-color: rgba(119,73,46,.45); }
+    button.active { border-color: var(--wood); color: #fff; background: var(--wood); }
+    button.secondary { margin-left: auto; color: var(--wood); }
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 13px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+    .legend::before {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #bfa77f; box-shadow: 0 0 0 3px rgba(191,167,127,.18);
+      content: "";
+    }
+    .hint {
+      position: fixed;
+      z-index: 5;
+      right: 20px;
+      bottom: 18px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 99px;
+      color: rgba(45,39,33,.65);
+      background: rgba(250,248,242,.72);
+      font-size: 10px;
+      backdrop-filter: blur(12px);
+      pointer-events: none;
+    }
+    @media (max-width: 620px) {
+      .card {
+        top: max(8px, env(safe-area-inset-top));
+        left: 8px;
+        width: calc(100vw - 16px);
+        max-height: calc(100dvh - max(16px, env(safe-area-inset-top)));
+        padding: 14px;
+      }
+      .card.collapsed { width: min(270px, calc(100vw - 16px)); padding: 10px 11px; }
+      h1 { font-size: 25px; }
+      .copy { margin: 8px 0 10px; }
+      .spec { padding: 9px 0; margin-bottom: 10px; }
+      .plan { min-height: 60px; }
+      .plan svg { height: 54px; }
+      .measure { padding: 5px 6px; }
+      .measure input { font-size: 16px; }
+      .controls button:not(.panel-toggle) { min-height: 36px; padding-inline: 12px; }
+      button.secondary { margin-left: 0; }
+      .hint { display: none; }
+    }
+    @media (max-width: 390px) {
+      .spec { grid-template-columns: 1fr; }
+      .plan { display: none; }
+      .measure-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .measure { padding: 6px 5px; }
+      .measure label { font-size: 7px; letter-spacing: .03em; }
+      .unit { display: none; }
+    }
+    @media (max-height: 620px) and (max-width: 900px) {
+      .copy, .plan, .legend { display: none; }
+      .spec { grid-template-columns: 1fr; margin-top: 8px; }
+    }
+  </style>
+
+  <script>
+    const DEFAULT_DIMENSIONS = Object.freeze({
+      lateral: 84,
+      retorno: 35,
+      altura: 72,
+      raio: 11
+    });
+    const DIMENSION_LIMITS = Object.freeze({
+      lateral: [50, 200],
+      retorno: [20, 100],
+      altura: [40, 120],
+      raio: [5, 30]
+    });
+    const BASE_HEIGHT = .724;
+    const BASE_FLOOR = .098;
+
+    // A curva em planta é contínua: lateral reta, quarto de círculo e retorno frontal.
+    function makePath(dimensions) {
+      const points = [];
+      const lateral = dimensions.lateral / 100;
+      const retorno = dimensions.retorno / 100;
+      const radius = dimensions.raio / 100;
+      const lineStart = -lateral / 2;
+      const lineEnd = lateral / 2 - radius;
+      const lineSegments = Math.max(12, Math.ceil((lateral - radius) / .04));
+      const curveSegments = Math.max(18, Math.ceil(radius * Math.PI / .012));
+      const returnSegments = Math.max(8, Math.ceil((retorno - radius) / .04));
+      for (let i = 0; i <= lineSegments; i++) {
+        const t = i / lineSegments;
+        points.push(new THREE.Vector2(THREE.MathUtils.lerp(lineStart, lineEnd, t), 0));
+      }
+      for (let i = 1; i <= curveSegments; i++) {
+        const angle = THREE.MathUtils.lerp(Math.PI / 2, 0, i / curveSegments);
+        points.push(new THREE.Vector2(
+          lineEnd + radius * Math.cos(angle),
+          -radius + radius * Math.sin(angle)
+        ));
+      }
+      for (let i = 1; i <= returnSegments; i++) {
+        points.push(new THREE.Vector2(
+          lineEnd + radius,
+          THREE.MathUtils.lerp(-radius, -retorno, i / returnSegments)
+        ));
+      }
+      return points;
+    }
+
+    function scaledY(baseValue, heightMetres) {
+      return (baseValue - BASE_FLOOR) / BASE_HEIGHT * heightMetres;
+    }
+
+    function pathFrames(points) {
+      const frames = [];
+      let distance = 0;
+      for (let i = 0; i < points.length; i++) {
+        if (i) distance += points[i].distanceTo(points[i - 1]);
+        const previous = points[Math.max(0, i - 1)];
+        const next = points[Math.min(points.length - 1, i + 1)];
+        const tangent = next.clone().sub(previous).normalize();
+        frames.push({
+          point: points[i],
+          tangent,
+          normal: new THREE.Vector2(-tangent.y, tangent.x),
+          distance
+        });
+      }
+      return frames;
+    }
+
+    function makeCanvasTexture(kind, bump = false) {
+      const size = kind === 'weave' ? 1024 : 768;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      let seed = 71423;
+      const random = () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+
+      if (kind === 'weave') {
+        ctx.fillStyle = bump ? '#626262' : '#c8ae80';
+        ctx.fillRect(0, 0, size, size);
+        const cell = 42;
+        for (let y = -cell; y < size + cell; y += cell) {
+          for (let x = -cell; x < size + cell; x += cell) {
+            const shift = ((Math.floor(y / cell) & 1) ? cell / 2 : 0);
+            ctx.save();
+            ctx.translate(x + shift, y);
+            ctx.rotate(Math.PI / 4);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = bump ? '#dedede' : '#ead8b4';
+            ctx.lineWidth = 13;
+            ctx.beginPath(); ctx.moveTo(-21, 0); ctx.lineTo(21, 0); ctx.stroke();
+            ctx.strokeStyle = bump ? '#9a9a9a' : '#987a51';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-20, 4); ctx.lineTo(20, 4); ctx.stroke();
+            ctx.restore();
+          }
+        }
+        ctx.globalAlpha = bump ? .09 : .17;
+        for (let i = 0; i < 7000; i++) {
+          const c = bump ? 80 + random() * 130 : 95 + random() * 105;
+          ctx.fillStyle = `rgb(${c + (bump ? 0 : 25)},${c + (bump ? 0 : 10)},${c - (bump ? 0 : 12)})`;
+          ctx.fillRect(random() * size, random() * size, .5 + random() * 3, .5 + random());
+        }
+      } else {
+        const image = ctx.createImageData(size, size);
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const wave = Math.sin(x * .035 + Math.sin(y * .012) * 2.7 + Math.sin(x * .006) * 4);
+            const pore = random() > .992 ? -45 : 0;
+            const n = (random() - .5) * 12;
+            const base = bump ? 128 + wave * 25 + pore : 86 + wave * 18 + n;
+            const index = (y * size + x) * 4;
+            image.data[index] = bump ? base : base + 32;
+            image.data[index + 1] = bump ? base : base + 5;
+            image.data[index + 2] = bump ? base : base - 13;
+            image.data[index + 3] = 255;
+          }
+        }
+        ctx.putImageData(image, 0, 0);
+        if (!bump) {
+          const sheen = ctx.createLinearGradient(0, 0, 0, size);
+          sheen.addColorStop(0, 'rgba(255,205,150,.16)');
+          sheen.addColorStop(.5, 'rgba(80,35,15,.02)');
+          sheen.addColorStop(1, 'rgba(30,12,4,.20)');
+          ctx.fillStyle = sheen; ctx.fillRect(0, 0, size, size);
+        }
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.colorSpace = bump ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+      texture.anisotropy = 8;
+      return texture;
+    }
+
+    function makeSweepGeometry(frames, y0, y1, outerWidth, innerWidth, rows = 1, bulge = 0) {
+      const vertices = [];
+      const uvs = [];
+      const indices = [];
+      const rowCount = rows + 1;
+      const total = frames[frames.length - 1].distance;
+
+      // Face externa com subdivisões verticais e leve abaulamento.
+      for (let i = 0; i < frames.length; i++) {
+        const f = frames[i];
+        for (let j = 0; j < rowCount; j++) {
+          const v = j / rows;
+          const offset = outerWidth + Math.sin(v * Math.PI) * bulge;
+          vertices.push(f.point.x + f.normal.x * offset, THREE.MathUtils.lerp(y0, y1, v), f.point.y + f.normal.y * offset);
+          uvs.push(f.distance / .35, v * (y1 - y0) / .35);
+        }
+      }
+      for (let i = 0; i < frames.length - 1; i++) {
+        for (let j = 0; j < rows; j++) {
+          const a = i * rowCount + j, b = (i + 1) * rowCount + j;
+          indices.push(a, b, a + 1, b, b + 1, a + 1);
+        }
+      }
+
+      const innerOffset = vertices.length / 3;
+      for (let i = 0; i < frames.length; i++) {
+        const f = frames[i];
+        vertices.push(f.point.x - f.normal.x * innerWidth, y0, f.point.y - f.normal.y * innerWidth);
+        vertices.push(f.point.x - f.normal.x * innerWidth, y1, f.point.y - f.normal.y * innerWidth);
+        uvs.push(f.distance / .35, 0, f.distance / .35, (y1 - y0) / .35);
+      }
+      for (let i = 0; i < frames.length - 1; i++) {
+        const a = innerOffset + i * 2, b = a + 2;
+        indices.push(a, a + 1, b, b, a + 1, b + 1);
+      }
+
+      // Tampas superior e inferior.
+      const capsOffset = vertices.length / 3;
+      for (let i = 0; i < frames.length; i++) {
+        const f = frames[i];
+        for (const y of [y0, y1]) {
+          vertices.push(f.point.x + f.normal.x * outerWidth, y, f.point.y + f.normal.y * outerWidth);
+          vertices.push(f.point.x - f.normal.x * innerWidth, y, f.point.y - f.normal.y * innerWidth);
+          uvs.push(f.distance / .1, 0, f.distance / .1, 1);
+        }
+      }
+      for (let i = 0; i < frames.length - 1; i++) {
+        const a = capsOffset + i * 4, b = a + 4;
+        indices.push(a, a + 1, b, b, a + 1, b + 1);
+        indices.push(a + 2, b + 2, a + 3, b + 2, b + 3, a + 3);
+      }
+
+      // Fechamento das duas extremidades.
+      const endsOffset = vertices.length / 3;
+      for (const index of [0, frames.length - 1]) {
+        const f = frames[index];
+        vertices.push(
+          f.point.x + f.normal.x * outerWidth, y0, f.point.y + f.normal.y * outerWidth,
+          f.point.x - f.normal.x * innerWidth, y0, f.point.y - f.normal.y * innerWidth,
+          f.point.x + f.normal.x * outerWidth, y1, f.point.y + f.normal.y * outerWidth,
+          f.point.x - f.normal.x * innerWidth, y1, f.point.y - f.normal.y * innerWidth
+        );
+        uvs.push(0,0, 1,0, 0,1, 1,1);
+      }
+      indices.push(endsOffset, endsOffset + 2, endsOffset + 1, endsOffset + 1, endsOffset + 2, endsOffset + 3);
+      indices.push(endsOffset + 4, endsOffset + 5, endsOffset + 6, endsOffset + 5, endsOffset + 7, endsOffset + 6);
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      return geometry;
+    }
+
+    function frameAtDistance(frames, distance) {
+      const clamped = THREE.MathUtils.clamp(distance, 0, frames[frames.length - 1].distance);
+      let high = 1;
+      while (high < frames.length && frames[high].distance < clamped) high++;
+      const low = Math.max(0, high - 1);
+      high = Math.min(frames.length - 1, high);
+      const span = frames[high].distance - frames[low].distance || 1;
+      const t = (clamped - frames[low].distance) / span;
+      return {
+        point: frames[low].point.clone().lerp(frames[high].point, t),
+        normal: frames[low].normal.clone().lerp(frames[high].normal, t).normalize()
+      };
+    }
+
+    function addWovenRelief(group, frames, dimensions, detailScale, inside = false) {
+      const height = dimensions.altura / 100;
+      const y0 = scaledY(.232, height);
+      const y1 = scaledY(.713, height);
+      const length = frames[frames.length - 1].distance;
+      const spacing = .021;
+      const strandMaterials = [
+        new THREE.MeshStandardMaterial({ color: 0xd5bf98, roughness: .91 }),
+        new THREE.MeshStandardMaterial({ color: 0xbda176, roughness: .94 })
+      ];
+
+      // Duas famílias diagonais formam losangos fisicamente salientes.
+      for (const [family, slope] of [[0, .78], [1, -.78]]) {
+        const minB = y0 - Math.max(0, slope * length);
+        const maxB = y1 - Math.min(0, slope * length);
+        for (let b = minB; b <= maxB; b += spacing) {
+          const curvePoints = [];
+          const samples = 42;
+          for (let i = 0; i <= samples; i++) {
+            const distance = length * i / samples;
+            const y = b + slope * distance;
+            if (y < y0 || y > y1) continue;
+            const f = frameAtDistance(frames, distance);
+            // Oscilação alternada simula fios passando por cima e por baixo.
+            const crossing = Math.sin((distance / spacing + (y - y0) / spacing) * Math.PI);
+            const offset = inside
+              ? (-.029 - crossing * .0007 * (family ? -1 : 1)) * detailScale
+              : (.041 + crossing * .0009 * (family ? -1 : 1)) * detailScale;
+            curvePoints.push(new THREE.Vector3(
+              f.point.x + f.normal.x * offset,
+              y,
+              f.point.y + f.normal.y * offset
+            ));
+          }
+          if (curvePoints.length < 3) continue;
+          const curve = new THREE.CatmullRomCurve3(curvePoints, false, 'centripetal');
+          const geometry = new THREE.TubeGeometry(
+            curve,
+            Math.max(8, curvePoints.length * 2),
+            .0017 * detailScale,
+            5,
+            false
+          );
+          const strand = new THREE.Mesh(geometry, strandMaterials[family]);
+          strand.name = family ? 'fibra-diagonal-b' : 'fibra-diagonal-a';
+          strand.castShadow = true;
+          strand.receiveShadow = true;
+          group.add(strand);
+        }
+      }
+    }
+
+    AFRAME.registerComponent('curved-scratcher', {
+      schema: {
+        lateral: { default: DEFAULT_DIMENSIONS.lateral },
+        retorno: { default: DEFAULT_DIMENSIONS.retorno },
+        altura: { default: DEFAULT_DIMENSIONS.altura },
+        raio: { default: DEFAULT_DIMENSIONS.raio }
+      },
+      init() {
+        this.group = null;
+      },
+      update() {
+        this.rebuild();
+      },
+      remove() {
+        this.disposeGroup();
+      },
+      disposeGroup() {
+        if (!this.group) return;
+        const geometries = new Set();
+        const materials = new Set();
+        const textures = new Set();
+        this.group.traverse(object => {
+          if (object.geometry) geometries.add(object.geometry);
+          const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
+          objectMaterials.filter(Boolean).forEach(material => {
+            materials.add(material);
+            ['map', 'bumpMap', 'normalMap', 'roughnessMap'].forEach(key => {
+              if (material[key]) textures.add(material[key]);
+            });
+          });
+        });
+        this.el.removeObject3D('mesh');
+        geometries.forEach(geometry => geometry.dispose());
+        materials.forEach(material => material.dispose());
+        textures.forEach(texture => texture.dispose());
+        this.group = null;
+      },
+      rebuild() {
+        this.disposeGroup();
+        const dimensions = this.data;
+        const height = dimensions.altura / 100;
+        const detailScale = THREE.MathUtils.clamp(dimensions.raio / DEFAULT_DIMENSIONS.raio, .72, 1.65);
+        const renderer = this.el.sceneEl.renderer;
+        const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+        const setTexture = texture => { texture.anisotropy = Math.min(16, maxAnisotropy); return texture; };
+        const weave = setTexture(makeCanvasTexture('weave'));
+        const weaveBump = setTexture(makeCanvasTexture('weave', true));
+        const wood = setTexture(makeCanvasTexture('wood'));
+        const woodBump = setTexture(makeCanvasTexture('wood', true));
+        wood.repeat.set(2.2, 1.2); woodBump.repeat.copy(wood.repeat);
+
+        const weaveMaterial = new THREE.MeshStandardMaterial({
+          map: weave, bumpMap: weaveBump, bumpScale: .006 * detailScale,
+          color: 0xf2dfb9, roughness: .86, metalness: 0
+        });
+        const woodMaterial = new THREE.MeshPhysicalMaterial({
+          map: wood, bumpMap: woodBump, bumpScale: .0022 * detailScale,
+          color: 0x9b6845, roughness: .48, metalness: 0,
+          clearcoat: .17, clearcoatRoughness: .68
+        });
+        const darkJoint = new THREE.MeshStandardMaterial({ color: 0x39261b, roughness: .84 });
+
+        const path = makePath(dimensions);
+        const frames = pathFrames(path);
+        const group = new THREE.Group();
+        group.name = 'arranhador-curvo';
+
+        const addSweep = (geometry, material, name, shadows = true) => {
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.name = name;
+          mesh.castShadow = shadows;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+          return mesh;
+        };
+
+        // Corpo claro contínuo, incluindo a curva e o retorno dianteiro.
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.225, height), scaledY(.72, height),
+          .031 * detailScale, .024 * detailScale, 7, .009 * detailScale
+        ), weaveMaterial, 'painel-trancado');
+        addWovenRelief(group, frames, dimensions, detailScale);
+        addWovenRelief(group, frames, dimensions, detailScale, true);
+
+        // Juntas de sombra deixam claro que o painel está encaixado na moldura.
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.207, height), scaledY(.226, height),
+          .035 * detailScale, .028 * detailScale
+        ), darkJoint, 'junta-inferior');
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.719, height), scaledY(.738, height),
+          .035 * detailScale, .028 * detailScale
+        ), darkJoint, 'junta-superior');
+
+        // Molduras contínuas acompanham exatamente a curva de 90 graus.
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.168, height), scaledY(.218, height),
+          .055 * detailScale, .047 * detailScale
+        ), woodMaterial, 'moldura-inferior');
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.732, height), scaledY(.785, height),
+          .055 * detailScale, .047 * detailScale
+        ), woodMaterial, 'moldura-superior');
+
+        // Base e tampo têm balanço e espessura próprios.
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.125, height), scaledY(.166, height),
+          .083 * detailScale, .070 * detailScale
+        ), woodMaterial, 'base');
+        addSweep(makeSweepGeometry(
+          frames, scaledY(.787, height), scaledY(.822, height),
+          .100 * detailScale, .086 * detailScale
+        ), woodMaterial, 'tampo');
+
+        // Pequeno plinto recuado cria a sombra sob a peça.
+        addSweep(makeSweepGeometry(
+          frames, 0, scaledY(.124, height),
+          .057 * detailScale, .050 * detailScale
+        ), darkJoint, 'plinto');
+
+        // Montantes verticais nas extremidades, com orientação tangente ao percurso.
+        const postBottom = scaledY(.168, height);
+        const postTop = scaledY(.785, height);
+        for (const [f, name] of [[frames[0], 'montante-traseiro'], [frames[frames.length - 1], 'montante-frontal']]) {
+          const geometry = new THREE.BoxGeometry(.068 * detailScale, postTop - postBottom, .070 * detailScale, 1, 1, 1);
+          const mesh = new THREE.Mesh(geometry, woodMaterial);
+          mesh.name = name;
+          mesh.position.set(f.point.x, (postBottom + postTop) / 2, f.point.y);
+          mesh.rotation.y = -Math.atan2(f.tangent.y, f.tangent.x);
+          mesh.castShadow = mesh.receiveShadow = true;
+          group.add(mesh);
+        }
+
+        this.group = group;
+        this.el.setObject3D('mesh', group);
+      }
+    });
+
+    AFRAME.registerComponent('orbit-rig', {
+      schema: {
+        distance: { default: 2.05 },
+        yaw: { default: 42 },
+        pitch: { default: 18 }
+      },
+      init() {
+        this.distance = this.data.distance;
+        this.yaw = this.data.yaw;
+        this.pitch = this.data.pitch;
+        this.target = new THREE.Vector3(0, .47, -.04);
+        this.minDistance = 1.15;
+        this.maxDistance = 3.5;
+        this.dragging = false;
+        this.desired = { distance: this.distance, yaw: this.yaw, pitch: this.pitch };
+        const canvas = this.el.sceneEl.canvas;
+        canvas.addEventListener('pointerdown', e => {
+          this.dragging = true; this.lastX = e.clientX; this.lastY = e.clientY;
+          canvas.setPointerCapture(e.pointerId);
+        });
+        canvas.addEventListener('pointermove', e => {
+          if (!this.dragging) return;
+          this.desired.yaw -= (e.clientX - this.lastX) * .25;
+          this.desired.pitch = THREE.MathUtils.clamp(this.desired.pitch + (e.clientY - this.lastY) * .2, -48, 72);
+          this.lastX = e.clientX; this.lastY = e.clientY;
+        });
+        canvas.addEventListener('pointerup', () => this.dragging = false);
+        canvas.addEventListener('pointercancel', () => this.dragging = false);
+        canvas.addEventListener('wheel', e => {
+          e.preventDefault();
+          this.desired.distance = THREE.MathUtils.clamp(
+            this.desired.distance + e.deltaY * .0017,
+            this.minDistance,
+            this.maxDistance
+          );
+        }, { passive: false });
+      },
+      tick(_, delta) {
+        const ease = 1 - Math.pow(.001, Math.min(delta, 100) / 1000);
+        this.yaw = THREE.MathUtils.lerp(this.yaw, this.desired.yaw, ease);
+        this.pitch = THREE.MathUtils.lerp(this.pitch, this.desired.pitch, ease);
+        this.distance = THREE.MathUtils.lerp(this.distance, this.desired.distance, ease);
+        const phi = THREE.MathUtils.degToRad(90 - this.pitch);
+        const theta = THREE.MathUtils.degToRad(this.yaw);
+        const position = new THREE.Vector3().setFromSphericalCoords(this.distance, phi, theta).add(this.target);
+        this.el.object3D.position.copy(position);
+        this.el.object3D.lookAt(this.target);
+        this.el.object3D.rotateY(Math.PI);
+      },
+      setView(yaw, pitch, distance) {
+        this.desired = { yaw, pitch, distance };
+      },
+      setFrame(target, minDistance, maxDistance) {
+        this.target.copy(target);
+        this.minDistance = minDistance;
+        this.maxDistance = maxDistance;
+      }
+    });
+  </script>
+</head>
+<body>
+  <aside class="card" aria-label="Detalhes do estudo">
+    <div class="card-header">
+      <div class="card-title">
+        <p class="eyebrow">Modelo paramétrico · v3</p>
+        <h1>Arranhador envolvente</h1>
+      </div>
+      <button id="panelToggle" class="panel-toggle" type="button"
+              aria-expanded="true" aria-controls="panelContent" title="Recolher painel">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Recolher painel</span>
+      </button>
+    </div>
+    <div id="panelContent">
+    <p class="copy">A face lateral curva 90° e retorna sobre a frente do braço, como uma única casca contínua.</p>
+    <div class="spec">
+      <div class="plan" aria-label="Diagrama da geometria vista de cima">
+        <svg viewBox="0 0 120 80" role="img">
+          <path id="planOutline" d="M10 18 H80 C96 18 104 26 104 42 V69" fill="none" stroke="#2d2822" stroke-width="15" stroke-linecap="round"/>
+          <path id="planSurface" d="M10 18 H80 C96 18 104 26 104 42 V69" fill="none" stroke="#c6ad82" stroke-width="9" stroke-linecap="round"/>
+          <path id="planSofa" d="M17 32 H72 C83 32 90 39 90 50 V62" fill="none" stroke="#8b8174" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <text x="10" y="8" font-size="7" fill="#776e63">LATERAL</text>
+          <text x="111" y="73" font-size="7" fill="#776e63" transform="rotate(-90 111 73)">FRENTE</text>
+        </svg>
+      </div>
+      <div class="measure-grid" aria-label="Medidas do modelo em centímetros">
+        <div class="measure">
+          <label for="lateral">Lateral</label>
+          <input id="lateral" name="lateral" type="number" min="50" max="200" step="1" inputmode="decimal" value="84">
+          <span class="unit">cm</span>
+        </div>
+        <div class="measure">
+          <label for="retorno">Retorno</label>
+          <input id="retorno" name="retorno" type="number" min="20" max="100" step="1" inputmode="decimal" value="35">
+          <span class="unit">cm</span>
+        </div>
+        <div class="measure">
+          <label for="altura">Altura</label>
+          <input id="altura" name="altura" type="number" min="40" max="120" step="1" inputmode="decimal" value="72">
+          <span class="unit">cm</span>
+        </div>
+        <div class="measure">
+          <label for="raio">Raio</label>
+          <input id="raio" name="raio" type="number" min="5" max="30" step="1" inputmode="decimal" value="11">
+          <span class="unit">cm</span>
+        </div>
+      </div>
+    </div>
+    <div id="validation" class="validation" role="status" aria-live="polite"></div>
+    <div class="controls">
+      <button data-view="iso" class="active">Perspectiva</button>
+      <button data-view="side">Lateral</button>
+      <button data-view="front">Frente</button>
+      <button data-view="top">Planta</button>
+      <button id="sofa">Sofá</button>
+      <button id="spin">Girar</button>
+      <button id="reset" class="secondary" title="Restaurar as medidas originais">Restaurar padrão</button>
+    </div>
+    <div class="legend">Trama de madeira clara com relevo</div>
+    </div>
+  </aside>
+  <div class="hint">Arraste para orbitar · role para aproximar</div>
+
+  <a-scene embedded
+    renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true"
+    background="color: #d9d1c5"
+    shadow="type: pcfsoft"
+    vr-mode-ui="enabled: false"
+    loading-screen="backgroundColor: #d9d1c5; dotsColor: #77492e">
+
+    <a-entity light="type: hemisphere; intensity: 1.15; color: #fff5df; groundColor: #746c64"></a-entity>
+    <a-entity light="type: directional; intensity: 2.1; color: #fff1d5; castShadow: true;
+                     shadowMapWidth: 2048; shadowMapHeight: 2048; shadowCameraLeft: -2;
+                     shadowCameraRight: 2; shadowCameraTop: 2; shadowCameraBottom: -2"
+              position="-2.5 4 3"></a-entity>
+    <a-entity light="type: directional; intensity: .8; color: #c8d8ef" position="3 2 -2"></a-entity>
+
+    <a-entity id="cameraRig" orbit-rig="distance: 2.05; yaw: 42; pitch: 18">
+      <a-camera position="0 0 0" fov="39" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+    </a-entity>
+
+    <a-entity id="turntable">
+      <a-entity id="model" curved-scratcher></a-entity>
+
+      <!-- Contexto semitransparente: volume aproximado do braço dentro da curva. -->
+      <a-entity id="sofaContext" visible="false">
+        <a-box id="sofaBody" position="-.07 .46 -.235" width=".76" height=".62" depth=".38"
+               material="color: #f2ede2; roughness: .96; transparent: true; opacity: .25; depthWrite: false"
+               shadow="cast: true; receive: true"></a-box>
+        <a-box id="sofaArm" position=".22 .80 -.235" width=".19" height=".16" depth=".38"
+               material="color: #faf7ef; roughness: 1; transparent: true; opacity: .31; depthWrite: false"
+               shadow="cast: true; receive: true"></a-box>
+        <a-box id="sofaSeat" position="-.20 .74 -.23" width=".48" height=".13" depth=".33" rotation="0 0 -5"
+               material="color: #f8f4ea; roughness: 1; transparent: true; opacity: .29; depthWrite: false"
+               shadow="cast: true; receive: true"></a-box>
+      </a-entity>
+    </a-entity>
+
+    <a-circle id="stage" position="0 .001 -.02" rotation="-90 0 0" radius="1.03"
+              material="color: #e9e3d9; roughness: 1" shadow="receive: true"></a-circle>
+    <a-plane position="0 -.006 0" rotation="-90 0 0" width="200" height="200"
+             material="color: #d5cdc0; roughness: 1" shadow="receive: true"></a-plane>
+  </a-scene>
+
+  <script>
+    const rig = document.querySelector('#cameraRig');
+    const model = document.querySelector('#model');
+    const fields = [...document.querySelectorAll('.measure input')];
+    const validation = document.querySelector('#validation');
+    const parameterNames = Object.keys(DEFAULT_DIMENSIONS);
+    let dimensions = { ...DEFAULT_DIMENSIONS };
+    let currentView = 'iso';
+    let updateTimer;
+
+    function readUrlDimensions() {
+      const params = new URL(window.location.href).searchParams;
+      const candidate = { ...DEFAULT_DIMENSIONS };
+      parameterNames.forEach(name => {
+        if (!params.has(name)) return;
+        const value = Number(params.get(name));
+        if (Number.isFinite(value)) candidate[name] = value;
+      });
+      return validateDimensions(candidate).valid ? candidate : { ...DEFAULT_DIMENSIONS };
+    }
+
+    function readFields() {
+      return Object.fromEntries(fields.map(field => [field.name, Number(field.value)]));
+    }
+
+    function validateDimensions(candidate) {
+      const errors = [];
+      const invalid = new Set();
+      parameterNames.forEach(name => {
+        const value = candidate[name];
+        const [minimum, maximum] = DIMENSION_LIMITS[name];
+        if (!Number.isFinite(value) || value < minimum || value > maximum) {
+          invalid.add(name);
+          errors.push(`${name[0].toUpperCase() + name.slice(1)}: use ${minimum}–${maximum} cm.`);
+        }
+      });
+      if (Number.isFinite(candidate.raio) && Number.isFinite(candidate.lateral) && Number.isFinite(candidate.retorno)) {
+        const maximumRadius = Math.min(candidate.retorno - 2, candidate.lateral * .45, DIMENSION_LIMITS.raio[1]);
+        if (candidate.raio > maximumRadius) {
+          invalid.add('raio');
+          errors.push(`Raio: máximo de ${Math.floor(maximumRadius)} cm para estas medidas.`);
+        }
+      }
+      fields.forEach(field => field.closest('.measure').classList.toggle('invalid', invalid.has(field.name)));
+      return { valid: errors.length === 0, errors };
+    }
+
+    function formatValue(value) {
+      return Number(value.toFixed(2)).toString();
+    }
+
+    function syncUrl(candidate) {
+      const url = new URL(window.location.href);
+      parameterNames.forEach(name => {
+        if (candidate[name] === DEFAULT_DIMENSIONS[name]) url.searchParams.delete(name);
+        else url.searchParams.set(name, formatValue(candidate[name]));
+      });
+      history.replaceState({ dimensions: candidate }, '', url);
+    }
+
+    function updatePlan(candidate) {
+      const scale = Math.min(90 / candidate.lateral, 51 / candidate.retorno);
+      const startX = 10;
+      const startY = 18;
+      const radius = candidate.raio * scale;
+      const lineEnd = startX + (candidate.lateral - candidate.raio) * scale;
+      const endX = startX + candidate.lateral * scale;
+      const curveEndY = startY + radius;
+      const endY = startY + candidate.retorno * scale;
+      const path = `M${startX} ${startY} H${lineEnd} A${radius} ${radius} 0 0 1 ${endX} ${curveEndY} V${endY}`;
+      document.querySelector('#planOutline').setAttribute('d', path);
+      document.querySelector('#planSurface').setAttribute('d', path);
+      document.querySelector('#planSofa').setAttribute(
+        'd',
+        `M${startX + 7} ${startY + 14} H${Math.max(startX + 12, lineEnd - 7)} Q${endX - 13} ${startY + 14} ${endX - 13} ${curveEndY + 12} V${Math.max(curveEndY + 13, endY - 7)}`
+      );
+    }
+
+    function updateSofaContext(candidate) {
+      const lateral = candidate.lateral / 100;
+      const retorno = candidate.retorno / 100;
+      const altura = candidate.altura / 100;
+      const body = document.querySelector('#sofaBody');
+      const arm = document.querySelector('#sofaArm');
+      const seat = document.querySelector('#sofaSeat');
+      const depth = Math.max(.16, retorno - .04);
+      const bodyHeight = altura * .86;
+      body.setAttribute('width', lateral * .90);
+      body.setAttribute('height', bodyHeight);
+      body.setAttribute('depth', depth);
+      body.setAttribute('position', `${-lateral * .03} ${bodyHeight / 2} ${-retorno / 2 - .02}`);
+      arm.setAttribute('width', Math.max(.13, lateral * .23));
+      arm.setAttribute('height', altura * .22);
+      arm.setAttribute('depth', depth);
+      arm.setAttribute('position', `${lateral * .28} ${altura * .91} ${-retorno / 2 - .02}`);
+      seat.setAttribute('width', lateral * .57);
+      seat.setAttribute('height', altura * .18);
+      seat.setAttribute('depth', Math.max(.13, depth - .05));
+      seat.setAttribute('position', `${-lateral * .23} ${altura * .82} ${-retorno / 2 - .02}`);
+    }
+
+    function viewSettings(candidate) {
+      const lateral = candidate.lateral / 100;
+      const retorno = candidate.retorno / 100;
+      const altura = candidate.altura / 100;
+      const extent = Math.max(lateral, retorno * 1.35, altura);
+      const base = Math.max(1.25, extent * 2.44);
+      return {
+        target: new THREE.Vector3(0, altura * .55, -retorno * .12),
+        min: Math.max(.75, extent * 1.15),
+        max: Math.max(3.5, extent * 5),
+        views: {
+          iso: [42, 18, base],
+          side: [2, 5, base * .90],
+          front: [91, 4, base * .84],
+          top: [34, 68, base]
+        }
+      };
+    }
+
+    function frameCurrentView(candidate, animate = true) {
+      const orbit = rig.components['orbit-rig'];
+      if (!orbit) return;
+      const settings = viewSettings(candidate);
+      const [yaw, pitch, distance] = settings.views[currentView];
+      orbit.setFrame(settings.target, settings.min, settings.max);
+      orbit.setView(yaw, pitch, distance);
+      if (!animate) {
+        orbit.yaw = yaw;
+        orbit.pitch = pitch;
+        orbit.distance = distance;
+      }
+      document.querySelector('#stage').setAttribute('radius', Math.max(1.03, Math.max(candidate.lateral, candidate.retorno) / 75));
+    }
+
+    function applyDimensions(candidate, { updateUrl = true, animateCamera = true } = {}) {
+      dimensions = { ...candidate };
+      fields.forEach(field => { field.value = formatValue(dimensions[field.name]); });
+      validation.textContent = '';
+      model.setAttribute('curved-scratcher', dimensions);
+      updatePlan(dimensions);
+      updateSofaContext(dimensions);
+      frameCurrentView(dimensions, animateCamera);
+      if (updateUrl) syncUrl(dimensions);
+    }
+
+    function handleFieldInput() {
+      window.clearTimeout(updateTimer);
+      updateTimer = window.setTimeout(() => {
+        const candidate = readFields();
+        const result = validateDimensions(candidate);
+        validation.textContent = result.errors[0] || '';
+        if (result.valid) applyDimensions(candidate);
+      }, 180);
+    }
+
+    fields.forEach(field => field.addEventListener('input', handleFieldInput));
+
+    document.querySelectorAll('[data-view]').forEach(button => {
+      button.addEventListener('click', () => {
+        currentView = button.dataset.view;
+        const [yaw, pitch, distance] = viewSettings(dimensions).views[currentView];
+        rig.components['orbit-rig'].setView(yaw, pitch, distance);
+        document.querySelectorAll('[data-view]').forEach(item => item.classList.toggle('active', item === button));
+      });
+    });
+
+    document.querySelector('#sofa').addEventListener('click', event => {
+      const context = document.querySelector('#sofaContext');
+      const nextVisible = !context.object3D.visible;
+      context.setAttribute('visible', nextVisible);
+      context.object3D.visible = nextVisible;
+      event.currentTarget.classList.toggle('active', nextVisible);
+    });
+
+    let spinning = false;
+    document.querySelector('#spin').addEventListener('click', event => {
+      spinning = !spinning;
+      event.currentTarget.classList.toggle('active', spinning);
+      const table = document.querySelector('#turntable');
+      if (spinning) {
+        table.setAttribute('animation', 'property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 14000; easing: linear');
+      } else {
+        table.removeAttribute('animation');
+        table.object3D.rotation.y = 0;
+      }
+    });
+
+    document.querySelector('#reset').addEventListener('click', () => {
+      window.clearTimeout(updateTimer);
+      applyDimensions({ ...DEFAULT_DIMENSIONS });
+    });
+
+    const card = document.querySelector('.card');
+    const panelToggle = document.querySelector('#panelToggle');
+    const panelToggleLabel = panelToggle.querySelector('span');
+    function setPanelCollapsed(collapsed) {
+      card.classList.toggle('collapsed', collapsed);
+      panelToggle.setAttribute('aria-expanded', String(!collapsed));
+      panelToggle.title = collapsed ? 'Expandir painel' : 'Recolher painel';
+      panelToggleLabel.textContent = collapsed ? 'Expandir painel' : 'Recolher painel';
+    }
+    panelToggle.addEventListener('click', () => {
+      setPanelCollapsed(!card.classList.contains('collapsed'));
+    });
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !card.classList.contains('collapsed')) {
+        setPanelCollapsed(true);
+        panelToggle.focus();
+      }
+    });
+
+    window.addEventListener('popstate', () => {
+      const candidate = readUrlDimensions();
+      validateDimensions(candidate);
+      applyDimensions(candidate, { updateUrl: false });
+    });
+
+    function initializeViewer() {
+      const initialDimensions = readUrlDimensions();
+      validateDimensions(initialDimensions);
+      applyDimensions(initialDimensions, { updateUrl: false, animateCamera: false });
+    }
+    const scene = document.querySelector('a-scene');
+    if (scene.hasLoaded) initializeViewer();
+    else scene.addEventListener('loaded', initializeViewer, { once: true });
+  </script>
+</body>
+</html>
