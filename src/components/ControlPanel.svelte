@@ -99,13 +99,22 @@
 
   <div id="panelContent">
     <p class="copy">
-      A face lateral curva 90° nas duas quinas, formando dois retornos paralelos como uma única
-      casca contínua.
+      A face lateral curva 90° e retorna sobre a frente do braço, como uma única casca contínua.
     </p>
     <div class="spec">
       <div class="plan" aria-label="Diagrama da geometria vista de cima">
         <svg viewBox="0 0 120 80" role="img">
-          <title>Vista superior em U com retornos alongados nas quinas B e C</title>
+          <title>Vista superior com quinas B e C alongadas na direção do retorno</title>
+          {#each paths.corners as corner}
+            <rect
+              x={corner.x}
+              y={corner.y}
+              width={corner.width}
+              height={corner.height}
+              rx="1.5"
+              fill="#77492e"
+            />
+          {/each}
           <path
             d={paths.model}
             fill="none"
@@ -129,12 +138,12 @@
           />
           {#each paths.corners as corner}
             <text
-              x={corner.x}
-              y={corner.y - 3}
+              x={corner.x + corner.width / 2}
+              y={corner.y + corner.height - 2}
               text-anchor="middle"
               font-size="5"
               font-weight="800"
-              fill="#77492e">{corner.name}</text
+              fill="#fff">{corner.name}</text
             >
           {/each}
           <text x="10" y="8" font-size="7" fill="#776e63">LATERAL</text>

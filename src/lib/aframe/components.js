@@ -1,5 +1,5 @@
 import 'aframe';
-import { DEFAULT_DIMENSIONS } from '../model.js';
+import { CORNER_DETAILS, DEFAULT_DIMENSIONS } from '../model.js';
 
 const { AFRAME } = window;
 const { THREE } = AFRAME;
@@ -11,31 +11,13 @@ function makePath(dimensions) {
   const lateral = dimensions.lateral / 100;
   const retorno = dimensions.retorno / 100;
   const radius = dimensions.raio / 100;
-  const leftEdge = -lateral / 2;
-  const lineStart = leftEdge + radius;
+  const lineStart = -lateral / 2;
   const lineEnd = lateral / 2 - radius;
-  const lineSegments = Math.max(12, Math.ceil((lateral - radius * 2) / 0.04));
+  const lineSegments = Math.max(12, Math.ceil((lateral - radius) / 0.04));
   const curveSegments = Math.max(18, Math.ceil((radius * Math.PI) / 0.012));
   const returnSegments = Math.max(8, Math.ceil((retorno - radius) / 0.04));
 
-  for (let index = 0; index <= returnSegments; index += 1) {
-    points.push(
-      new THREE.Vector2(
-        leftEdge,
-        THREE.MathUtils.lerp(-retorno, -radius, index / returnSegments)
-      )
-    );
-  }
-  for (let index = 1; index <= curveSegments; index += 1) {
-    const angle = THREE.MathUtils.lerp(Math.PI, Math.PI / 2, index / curveSegments);
-    points.push(
-      new THREE.Vector2(
-        lineStart + radius * Math.cos(angle),
-        -radius + radius * Math.sin(angle)
-      )
-    );
-  }
-  for (let index = 1; index <= lineSegments; index += 1) {
+  for (let index = 0; index <= lineSegments; index += 1) {
     const progress = index / lineSegments;
     points.push(new THREE.Vector2(THREE.MathUtils.lerp(lineStart, lineEnd, progress), 0));
   }
@@ -472,19 +454,24 @@ function registerCurvedScratcher() {
 
       const postBottom = scaledY(0.168, height);
       const postTop = scaledY(0.785, height);
-      for (const [frame, name] of [
-        [frames[0], 'montante-retorno-c'],
-        [frames.at(-1), 'montante-retorno-b']
+      const cornerDepth = (CORNER_DETAILS.depth / 100) * detailScale;
+      const cornerWidth = (CORNER_DETAILS.width / 100) * detailScale;
+      const cornerOuterFace = (CORNER_DETAILS.outerOffset / 100) * detailScale;
+      const cornerCenterZ = cornerOuterFace - cornerDepth / 2;
+      const lateral = dimensions.lateral / 100;
+      const radius = dimensions.raio / 100;
+      for (const [x, name] of [
+        [-lateral / 2, 'montante-quina-c'],
+        [lateral / 2 - radius, 'montante-quina-b']
       ]) {
         const geometry = new THREE.BoxGeometry(
-          0.068 * detailScale,
+          cornerWidth,
           postTop - postBottom,
-          0.07 * detailScale
+          cornerDepth
         );
         const mesh = new THREE.Mesh(geometry, woodMaterial);
         mesh.name = name;
-        mesh.position.set(frame.point.x, (postBottom + postTop) / 2, frame.point.y);
-        mesh.rotation.y = -Math.atan2(frame.tangent.y, frame.tangent.x);
+        mesh.position.set(x, (postBottom + postTop) / 2, cornerCenterZ);
         mesh.castShadow = mesh.receiveShadow = true;
         group.add(mesh);
       }
